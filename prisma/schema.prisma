@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  reports   Report[]
+  ratings   Rating[]
+}
+
+model Landlord {
+  id      String     @id @default(cuid())
+  name    String
+  company String?
+  phone   String?
+  email   String?
+  notes   String?
+  props   Property[]
+}
+
+model Property {
+  id          String    @id @default(cuid())
+  landlordId  String?
+  landlord    Landlord? @relation(fields: [landlordId], references: [id])
+  address     String
+  city        String
+  province    String
+  postalCode  String
+  yearBuilt   Int?
+  numUnits    Int?
+  units       Unit[]
+  reports     Report[]
+  ratings     Rating[]
+}
+
+model Unit {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  unitNumber String?
+  bedrooms   Int?
+  bathrooms  Float?
+  sqFt       Int?
+  heating    Boolean @default(false)
+  leases     Lease[]
+}
+
+model Lease {
+  id         String   @id @default(cuid())
+  unitId     String
+  unit       Unit     @relation(fields: [unitId], references: [id])
+  startDate  DateTime
+  endDate    DateTime?
+  monthly    Int
+  controlled Boolean  @default(false)
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  unitId     String?
+  category   String
+  severity   Int
+  text       String
+  mediaUrl   String?
+  status     String   @default("new")
+  createdAt  DateTime @default(now())
+}
+
+model Rating {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+
+  // Overall score 1..5
+  overall     Int
+
+  // Optional sub-scores you already had
+  maintenance Int?
+  safety      Int?
+  noise       Int?
+  response    Int?
+
+  // NEW fields (what your API/UI expect)
+  pros        String[] @default([])
+  cons        String[] @default([])
+  note        String?
+
+  createdAt   DateTime @default(now())
+}
+
+
+model RentCheck {
+  id        String   @id @default(cuid())
+  userId    String?
+  province  String
+  year      Int
+  base      Int
+  proposed  Int
+  pct       Float
+  majorWork Boolean @default(false)
+  result    String
+  explain   String
+  createdAt DateTime @default(now())
+}
