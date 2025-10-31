@@ -1,34 +1,33 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
-async function create({ propertyId, userId, stars, pros, cons, note }) {
-  return prisma.rating.create({
+// Create a safety/maintenance report
+async function create({ propertyId, userId, category, severity, text, mediaUrl }) {
+  return prisma.report.create({
     data: {
-      stars,
-      pros: pros ?? [],
-      cons: cons ?? [],
-      note,
+      category,
+      severity,
+      text,
+      mediaUrl: mediaUrl ?? null,
       property: { connect: { id: propertyId } },
       user: { connect: { id: userId } },
+    },
+    include: {
+      user: { select: { id: true, email: true } },
     },
   });
 }
 
-async function listByProperty(propertyId) {
-  const [items, agg] = await Promise.all([
-    prisma.rating.findMany({
-      where: { propertyId },
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, email: true } } },
-    }),
-    prisma.rating.aggregate({
-      where: { propertyId },
-      _avg: { stars: true },
-      _count: { stars: true },
-    }),
-  ]);
-
-  return { items, avg: agg._avg.stars ?? 0, count: agg._count.stars ?? 0 };
+async function listForProperty(propertyId) {
+  return prisma.report.findMany({
+    where: { propertyId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: { select: { id: true, email: true } },
+    },
+  });
 }
 
-module.exports = { create, listByProperty };
+module.exports = {
+  create,
+  listForProperty,
+};
