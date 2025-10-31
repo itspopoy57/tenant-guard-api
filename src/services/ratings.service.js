@@ -1,40 +1,62 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
-// We accept { propertyId, userId, stars, pros, cons, note }
-// and store into model fields: overall (Int), pros String[], cons String[]
-async function create({ propertyId, userId, stars, pros, cons, note }) {
+// Create a rating for a property by a user
+// Body shape expected from frontend:
+// {
+//   propertyId: string,
+//   overall: number (1-5)          <-- required
+//   pros: string[],
+//   cons: string[],
+//   note: string (optional),
+//   maintenance?: number,
+//   noise?: number,
+//   response?: number
+// }
+async function create({
+  propertyId,
+  userId,
+  overall,
+  pros,
+  cons,
+  note,
+  maintenance,
+  noise,
+  response,
+}) {
   return prisma.rating.create({
     data: {
-      overall: stars,                            // map stars -> overall (your schema)
-      pros: { set: Array.isArray(pros) ? pros : [] },   // <-- scalar list create syntax
-      cons: { set: Array.isArray(cons) ? cons : [] },   // <-- scalar list create syntax
+      overall,
+      maintenance: maintenance ?? null,
+      noise: noise ?? null,
+      response: response ?? null,
       note: note ?? null,
+      pros: pros ?? [],
+      cons: cons ?? [],
       property: { connect: { id: propertyId } },
       user: { connect: { id: userId } },
+    },
+    include: {
+      user: {
+        select: { id: true, email: true },
+      },
     },
   });
 }
 
-async function listByProperty(propertyId) {
-  const [items, agg] = await Promise.all([
-    prisma.rating.findMany({
-      where: { propertyId },
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, email: true } } },
-    }),
-    prisma.rating.aggregate({
-      where: { propertyId },
-      _avg: { overall: true },
-      _count: { overall: true },
-    }),
-  ]);
-
-  return {
-    items,
-    avg: agg._avg.overall ?? 0,
-    count: agg._count.overall ?? 0,
-  };
+// Get all ratings for a property (for debugging / future UI use)
+async function listForProperty(propertyId) {
+  return prisma.rating.findMany({
+    where: { propertyId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: { id: true, email: true },
+      },
+    },
+  });
 }
 
-module.exports = { create, listByProperty };
+module.exports = {
+  create,
+  listForProperty,
+};
