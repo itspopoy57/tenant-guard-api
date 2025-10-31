@@ -12,6 +12,7 @@ router.use('/reports', require('./reports.routes'));
 router.use('/ratings', require('./ratings.routes'));
 router.use('/rentcheck', require('./rentcheck.routes'));
 router.use('/upload', require('./upload.routes'));
+router.use('/confirm', require('./confirmations.routes'));
 
 
 
