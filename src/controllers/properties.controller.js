@@ -3,6 +3,8 @@ const { success, HttpError } = require('../utils/http');
 const validate = require('../middleware/validate');
 const service = require('../services/properties.service');
 const { getPropertyWithDetails } = require('../services/propertyWithDetails.service');
+const { getPropertySummary } = require('../services/propertySummary.service');
+
 
 // ========== SCHEMAS ==========
 
@@ -55,6 +57,18 @@ async function getOne(req, res, next) {
   }
 }
 
+// GET /properties/:id/summary
+async function getSummary(req, res, next) {
+  try {
+    const { id } = req.params;
+    const data = await getPropertySummary(id);
+    return success(res, data);
+  } catch (e) {
+    next(e);
+  }
+}
+
+
 // POST /properties
 const create = [
   validate(createSchema),
@@ -68,9 +82,12 @@ const create = [
   },
 ];
 
+
+
 // ========== EXPORTS ==========
 module.exports = {
   list,
   getOne,
   create,
+  getSummary,
 };

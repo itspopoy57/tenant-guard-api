@@ -11,6 +11,9 @@ router.get('/', ...ctrl.list);
 // ctrl.getOne is a single function
 router.get('/:id', ctrl.getOne);
 
+router.get('/:id/summary', ctrl.getSummary);
+
+
 // POST /properties
 // ctrl.create is also an array [validate(...), async handler]
 router.post('/', ...ctrl.create);
