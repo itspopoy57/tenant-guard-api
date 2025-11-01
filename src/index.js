@@ -20,6 +20,8 @@ app.get('/health', (_, res) => {
 
 // all API routes
 app.use(routes);
+app.use('/users', require('./routes/users.routes'));
+
 
 // error handling middleware (must be last)
 app.use(errorHandler);

@@ -1,19 +1,27 @@
 const router = require('express').Router();
-// each sub-router
+
+// import each sub-router once
 const authRoutes = require('./auth.routes');
 const propertiesRoutes = require('./properties.routes');
 const reportsRoutes = require('./reports.routes');
 const ratingsRoutes = require('./ratings.routes');
+const rentcheckRoutes = require('./rentcheck.routes');
 const uploadRoutes = require('./upload.routes');
+const confirmationsRoutes = require('./confirmations.routes');
+const usersRoutes = require('./users.routes');
+const watchlistRoutes = require('./watchlist.routes');
+const inquiryRoutes = require('./inquiry.routes'); // 👈 NEW (correct path)
 
-router.use('/auth', require('./auth.routes'));
-router.use('/properties', require('./properties.routes'));
-router.use('/reports', require('./reports.routes'));
-router.use('/ratings', require('./ratings.routes'));
-router.use('/rentcheck', require('./rentcheck.routes'));
-router.use('/upload', require('./upload.routes'));
-router.use('/confirm', require('./confirmations.routes'));
-
-
+// mount them under their prefixes
+router.use('/auth', authRoutes);
+router.use('/properties', propertiesRoutes);
+router.use('/reports', reportsRoutes);
+router.use('/ratings', ratingsRoutes);
+router.use('/rentcheck', rentcheckRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/confirm', confirmationsRoutes);
+router.use('/users', usersRoutes);
+router.use('/watchlist', watchlistRoutes);
+router.use('/inquiry', inquiryRoutes); // 👈 NEW
 
 module.exports = router;

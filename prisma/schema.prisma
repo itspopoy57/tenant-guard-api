@@ -1,8 +1,5 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -17,108 +14,265 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
+  role      String   @default("tenant") // "tenant" | "landlord"
   createdAt DateTime @default(now())
-  reports   Report[]
-  ratings   Rating[]
+
+  // tenant activity
+  reports           Report[]              // issues they've reported
+  ratings           Rating[]              // building ratings they've left
+  confirmations     ReportConfirmation[]  // "I have this too"
+  reportContacts    ReportContact[]       // timeline updates ("landlord said X")
+  contacts          LandlordContact[]     // landlord contact attempts (older name)
+  residences        TenantResidence[]     // properties they've claimed "I live here"
+  claims            PropertyClaim[] @relation("UserToPropertyClaims")
+
+  // watchlist / favorites
+  watchlist         Watchlist[]
+
+  // rental inquiries they sent to a landlord (for available units)
+  inquiries         RentalInquiry[]
 }
 
+
 model Landlord {
-  id      String     @id @default(cuid())
-  name    String
-  company String?
-  phone   String?
-  email   String?
-  notes   String?
-  props   Property[]
+  id        String     @id @default(cuid())
+  name      String
+  company   String?
+  phone     String?
+  email     String?
+  notes     String?
+
+  props     Property[]
 }
 
 model Property {
-  id          String    @id @default(cuid())
+  id          String              @id @default(cuid())
   landlordId  String?
-  landlord    Landlord? @relation(fields: [landlordId], references: [id])
+  landlord    Landlord?           @relation(fields: [landlordId], references: [id])
+
   address     String
   city        String
   province    String
   postalCode  String
+
   yearBuilt   Int?
   numUnits    Int?
+
   units       Unit[]
   reports     Report[]
   ratings     Rating[]
+
+  residences  TenantResidence[]
+  claims      PropertyClaim[]     @relation("PropertyToClaims")
+  watchlist   Watchlist[]
+  inquiries   RentalInquiry[]   // 👈 NEW
 }
 
 model Unit {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
+  property   Property  @relation(fields: [propertyId], references: [id])
+
   unitNumber String?
   bedrooms   Int?
   bathrooms  Float?
   sqFt       Int?
-  heating    Boolean @default(false)
+  heating    Boolean   @default(false)
+
   leases     Lease[]
 }
 
 model Lease {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   unitId     String
-  unit       Unit     @relation(fields: [unitId], references: [id])
+  unit       Unit      @relation(fields: [unitId], references: [id])
+
   startDate  DateTime
   endDate    DateTime?
   monthly    Int
-  controlled Boolean  @default(false)
+  controlled Boolean   @default(false)
 }
 
 model Report {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
-  unitId     String?
-  category   String
-  severity   Int
-  text       String
-  mediaUrl   String?
-  status     String   @default("new")
-  createdAt  DateTime @default(now())
+  id              String    @id @default(cuid())
+  propertyId      String
+  property        Property  @relation(fields: [propertyId], references: [id])
+
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+
+  category        String
+  severity        Int
+  text            String
+  mediaUrl        String?
+
+  // status tracking
+  status          String    @default("open") // "open" | "in_progress" | "fixed" | "disputed"
+  landlordNotes   String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // "I have this too"
+  confirmations   ReportConfirmation[]
+
+  // timeline of "I called / landlord said / ignored"
+  landlordContacts LandlordContact[] // historical landlord communication logs
+  reportContacts   ReportContact[]   // more structured contact log
 }
 
 model Rating {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
+
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
   propertyId  String
-  property    Property @relation(fields: [propertyId], references: [id])
+  property    Property  @relation(fields: [propertyId], references: [id])
 
   // Overall score 1..5
   overall     Int
 
-  // Optional sub-scores you already had
+  // Optional sub-scores
   maintenance Int?
   safety      Int?
   noise       Int?
   response    Int?
 
-  // NEW fields (what your API/UI expect)
-  pros        String[] @default([])
-  cons        String[] @default([])
+  // Chips / tags
+  pros        String[]  @default([])
+  cons        String[]  @default([])
+
   note        String?
 
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+}
+
+model RentCheck {
+  id         String    @id @default(cuid())
+  userId     String?
+
+  province   String
+  year       Int
+  base       Int      // current rent
+  proposed   Int      // new rent
+  pct        Float
+  majorWork  Boolean  @default(false)
+
+  result     String   // "allowed" / "too high"
+  explain    String   // human readable summary
+
+  createdAt  DateTime @default(now())
+}
+
+model LandlordContact {
+  id        String    @id @default(cuid())
+
+  reportId  String
+  report    Report    @relation(fields: [reportId], references: [id])
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+
+  // status of contact with landlord:
+  // "reported"      = told landlord
+  // "promised_fix"  = landlord said they'll fix
+  // "ignored"       = landlord refuses / doing nothing
+  status    String
+
+  note      String?   // free text like "Super said plumber coming Friday"
+
+  createdAt DateTime  @default(now())
+}
+
+model ReportConfirmation {
+  id         String    @id @default(cuid())
+
+  reportId   String
+  report     Report    @relation(fields: [reportId], references: [id])
+
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+
+  createdAt  DateTime  @default(now())
+
+  // one "I have this too" per user/report
+  @@unique([reportId, userId])
+}
+
+model ReportContact {
+  id        String    @id @default(cuid())
+
+  reportId  String
+  report    Report    @relation(fields: [reportId], references: [id])
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+
+  status    String    // "reported", "promised_fix", "ignored"
+  note      String?   // e.g. "Landlord said they'll send electrician"
+
+  createdAt DateTime  @default(now())
+}
+
+model TenantResidence {
+  id         String    @id @default(cuid())
+
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id])
+
+  createdAt  DateTime  @default(now())
+
+  // can't claim same property twice
+  @@unique([userId, propertyId])
+}
+
+model PropertyClaim {
+  id          String     @id @default(cuid())
+
+  propertyId  String
+  property    Property   @relation("PropertyToClaims", fields: [propertyId], references: [id])
+
+  userId      String
+  user        User       @relation("UserToPropertyClaims", fields: [userId], references: [id])
+
+  status      String     @default("pending") // "pending" | "approved" | "rejected"
+  createdAt   DateTime   @default(now())
+
+  // a user shouldn't spam multiple pending claims for same place
+  @@unique([userId, propertyId])
+}
+
+model Watchlist {
+  userId     String
+  propertyId String
+  createdAt  DateTime   @default(now())
+
+  user       User       @relation(fields: [userId], references: [id])
+  property   Property   @relation(fields: [propertyId], references: [id])
+
+  // composite primary key
+  @@id([userId, propertyId])
 }
 
 
-model RentCheck {
-  id        String   @id @default(cuid())
-  userId    String?
-  province  String
-  year      Int
-  base      Int
-  proposed  Int
-  pct       Float
-  majorWork Boolean @default(false)
-  result    String
-  explain   String
-  createdAt DateTime @default(now())
+model RentalInquiry {
+  id          String   @id @default(cuid())
+
+  property    Property @relation(fields: [propertyId], references: [id])
+  propertyId  String
+
+  // renter lead info
+  name        String
+  email       String
+  message     String
+
+  // optional: who sent it (if logged in)
+  user        User?    @relation(fields: [userId], references: [id])
+  userId      String?
+
+  createdAt   DateTime @default(now())
 }

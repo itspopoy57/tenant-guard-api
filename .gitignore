@@ -1,8 +1,24 @@
-node_modules
-# Keep environment variables out of version control
+# Node
+node_modules/
 .env
-.npm-debug.log
-.DS_Store
+.env.local
+.env.development
+.env.production
 
+# Expo / React Native
+.expo/
+.expo-shared/
+android/
+ios/
+web-build/
 
-/generated/prisma
+# Prisma
+prisma/dev.db
+prisma/migrations/
+
+# VSCode
+.vscode/
+
+# build artifacts
+dist/
+build/
